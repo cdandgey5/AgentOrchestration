@@ -169,7 +169,7 @@ class Claude:
         self.env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_SESSION_ID"}
 
     def run(self, prompt, *, system_file, tools, model, session=None, resume=False):
-        """One headless Claude call. Returns (text, cost_usd).
+        """One headless Claude call. Returns the reply text.
 
         session=None  -> throwaway context (used for every reviewer call)
         session=<id>  -> persistent main-agent conversation
@@ -198,7 +198,7 @@ class Claude:
             raise ClaudeError((detail or f"claude exited with code {proc.returncode}") + hint)
         if data.get("is_error"):
             raise ClaudeError(str(data.get("result") or data.get("subtype") or "unknown error"))
-        return (data.get("result") or "").strip(), float(data.get("total_cost_usd") or 0)
+        return (data.get("result") or "").strip()
 
     @staticmethod
     def _parse(stdout):
@@ -268,28 +268,27 @@ class RefineChat:
 
     def turn(self, request):
         rounds = self.cfg["rounds"]
-        cost, start = 0.0, time.time()
+        calls, start = 1, time.time()
         self.log.write(f"\n## Turn {len(self.history) + 1}\n")
         self._step("User", request, screen=False)
 
         with Spinner("Main agent: drafting"):
-            answer, c = self._main(request)
-        cost += c
+            answer = self._main(request)
         self._step("Draft", answer)
 
         done = 0
         for i in range(1, rounds + 1):
             with Spinner(f"Reviewer {i}/{rounds}: reviewing"):
-                review, c = self._review(request, answer)
-            cost += c
+                review = self._review(request, answer)
+            calls += 1
             verdict, issues = parse_verdict(review), count_issues(review)
             self._step(f"Review {i}/{rounds} ({verdict})", review)
             if self.cfg["stop_early"] and verdict == "APPROVE":
                 status(f"round {i}/{rounds}: reviewer APPROVE -> stopping early")
                 break
             with Spinner(f"Main agent: revising {i}/{rounds}"):
-                answer, c = self._main(fill(self.revise_tpl, round=i, rounds=rounds, review=review))
-            cost += c
+                answer = self._main(fill(self.revise_tpl, round=i, rounds=rounds, review=review))
+            calls += 1
             done = i
             status(f"round {i}/{rounds}: reviewer {verdict} ({issues} issues) -> revised")
             self._step(f"Revision {i}/{rounds}", answer, screen=i < rounds)  # last one = final answer
@@ -299,7 +298,7 @@ class RefineChat:
         if self.cfg["show_steps"]:
             print("\n===== Final answer =====", file=sys.stderr, flush=True)
         print(f"\n{answer}\n", flush=True)
-        status(f"[{done} revision(s) - {int(time.time() - start)}s - est. ${cost:.2f}]")
+        status(f"[{done} revision(s) - {calls} Claude calls - {int(time.time() - start)}s]")
         return answer
 
 

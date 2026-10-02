@@ -65,7 +65,7 @@ Inside the chat:
 | `"""` | Start or end a multi-line message (for pasting) |
 | `/exit` | Quit. It prints `claude --resume <id>` so you can continue in Claude Code. |
 
-Each answer ends with a stats line, for example `[2 revision(s) - 26s - est. $0.10]`.
+Each answer ends with a stats line, for example `[2 revision(s) - 5 Claude calls - 26s]`.
 Full transcripts (drafts, reviews, final answers) are saved in `logs/`.
 
 ### B. Inside Claude Code: `/refine`

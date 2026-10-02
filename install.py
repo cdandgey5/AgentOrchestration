@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent
 HOME = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 FILES = [
     (ROOT / ".claude/agents/reviewer.md", HOME / "agents/reviewer.md"),
+    (ROOT / ".claude/agents/refiner.md", HOME / "agents/refiner.md"),
     (ROOT / ".claude/skills/refine/SKILL.md", HOME / "skills/refine/SKILL.md"),
 ]
 
@@ -31,7 +32,9 @@ def install():
         print(f"installed  {dst}")
 
     chat = ROOT / "chat.py"
-    print("\nDone. In any project, start `claude` and type:  /refine <your question>")
+    print("\nDone. In any project:")
+    print("  one message reviewed:   start `claude`, type  /refine <your question>")
+    print("  every message reviewed: run  claude --agent refiner")
     print("\nOptional shortcut for the chat script:")
     if os.name == "nt":
         print(f"  PowerShell: add to $PROFILE ->  function rchat {{ python \"{chat}\" @args }}")

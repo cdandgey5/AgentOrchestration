@@ -51,6 +51,7 @@ API_BILLING_VARS = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
                     "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"]
 
 HELP = """Commands:
+  -r N <msg>  use N review rounds for this one message (e.g. -r 0 thanks)
   /rounds N   set review rounds per answer (0 = no review)
   /steps      show or hide drafts and reviews
   /early      stop a loop early when the reviewer says APPROVE (on/off)
@@ -313,8 +314,8 @@ class RefineChat:
         if screen and self.cfg["show_steps"]:
             print(f"\n----- {title} -----\n{body}\n", file=sys.stderr, flush=True)
 
-    def turn(self, request):
-        rounds = self.cfg["rounds"]
+    def turn(self, request, rounds=None):
+        rounds = self.cfg["rounds"] if rounds is None else rounds
         calls, start = 1, time.time()
         self.log.write(f"\n## Turn {len(self.history) + 1}\n")
         self._step("User", request, screen=False)
@@ -405,8 +406,12 @@ def repl(chat):
             if not command(chat, text):
                 break
             continue
+        rounds = None
+        m = re.match(r"-r\s+(\d+)\s+(.+)", text, re.DOTALL)
+        if m:  # per-message override: "-r 0 thanks"
+            rounds, text = int(m.group(1)), m.group(2)
         try:
-            chat.turn(text)
+            chat.turn(text, rounds)
         except ClaudeError as e:
             print(f"\n  ERROR: {e}", file=sys.stderr)
         except KeyboardInterrupt:

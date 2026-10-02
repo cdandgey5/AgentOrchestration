@@ -1,8 +1,7 @@
 ---
 name: refine
-description: Answer a request with a draft -> independent reviewer subagent -> revise loop, then show only the final answer. Usage /refine [rounds] <request>
-argument-hint: "[rounds] <your request>"
-disable-model-invocation: true
+description: Draft -> independent reviewer subagent -> revise loop, then show only the final answer. Use ONLY when the user types /refine or the refiner agent tells you to. Never invoke it on your own.
+argument-hint: "[-r rounds] <your request>"
 ---
 
 # Refine loop
@@ -15,7 +14,7 @@ User input: $ARGUMENTS
 
 ## Steps
 
-1. **Rounds.** If the input starts with a whole number N (example: `3 explain X`), use N rounds and treat the rest as the request. Otherwise use the default rounds. N = 0 means no review: just answer.
+1. **Rounds.** If the input starts with `-r N` (example: `-r 3 explain X`), use N rounds and remove `-r N` from the request. Otherwise use the default rounds. `-r 0` means no review: just answer directly.
 
 2. **Draft.** Do the work and write your best complete answer, exactly as you normally would (read files, run searches, use tools as needed). Do NOT show the draft to the user. Keep it for the reviewer.
    - If the request is a change to files: make the changes. The "draft" is a summary of what you changed plus the list of changed files, so the reviewer can read them.

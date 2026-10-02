@@ -29,6 +29,7 @@ PROMPTS = ROOT / "prompts"
 REVIEWER_AGENT = ROOT / ".claude" / "agents" / "reviewer.md"
 
 DEFAULTS = {
+    "subscription_only": True,
     "rounds": 2,
     "stop_early": False,
     "show_steps": False,
@@ -40,6 +41,14 @@ DEFAULTS = {
     "log_dir": "logs",
     "timeout_seconds": 600,
 }
+
+# Logins that bill your Claude subscription (Pro/Max/Team/Enterprise), not per API request.
+# "oauth_token" is the long-lived subscription token from `claude setup-token`.
+SUBSCRIPTION_LOGINS = {"claude.ai", "oauth_token"}
+# Env vars that make `claude -p` bill per request instead. In -p mode an API key is
+# always used when present, with no prompt, so subscription_only removes them.
+API_BILLING_VARS = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
+                    "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"]
 
 HELP = """Commands:
   /rounds N   set review rounds per answer (0 = no review)
@@ -82,6 +91,25 @@ def parse_verdict(review):
 
 def count_issues(review):
     return len(re.findall(r"^\s*\d+\.\s", review, re.MULTILINE))
+
+
+def login_problem(info):
+    """Return an error message if `claude auth status` shows a non-subscription login."""
+    method = info.get("authMethod") if info.get("loggedIn") else "none"
+    if method in SUBSCRIPTION_LOGINS:
+        return None
+    if method in (None, "none"):
+        return "Not logged in. Run `claude`, type /login and sign in with your Claude account."
+    where = {
+        "api_key": 'an API key. Remove ANTHROPIC_API_KEY from the "env" section of '
+                   "~/.claude/settings.json (or the project's .claude/settings.json)",
+        "api_key_helper": 'an API key helper. Remove "apiKeyHelper" from ~/.claude/settings.json',
+        "third_party": "a cloud provider (Bedrock/Vertex/Foundry). Remove those settings "
+                       "from ~/.claude/settings.json",
+    }.get(method, f"'{method}'")
+    return (f"Claude Code is set to bill per API request, not your subscription. It uses {where}.\n"
+            "Then run `claude`, type /status and check that Login shows your Claude account.\n"
+            'To allow API billing anyway, set "subscription_only": false in config.json.')
 
 
 def load_config(path, args):
@@ -160,13 +188,32 @@ class Log:
 # ---------- claude -p wrapper ----------
 
 class Claude:
-    def __init__(self, timeout):
+    def __init__(self, timeout, subscription_only):
         self.exe = shutil.which("claude")
         if not self.exe:
             sys.exit("Claude Code CLI not found. Install it, run `claude` once to log in, then retry.")
         self.timeout = timeout
         # Don't inherit the session id when started from inside a Claude Code terminal.
         self.env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_SESSION_ID"}
+        if subscription_only:
+            dropped = [k for k in API_BILLING_VARS if self.env.pop(k, None) is not None]
+            if dropped:
+                status(f"Ignoring {', '.join(dropped)} so calls use your Claude subscription.")
+            self._check_subscription()
+
+    def _check_subscription(self):
+        """Stop before any call if Claude Code would bill per API request."""
+        try:
+            proc = subprocess.run([self.exe, "auth", "status", "--json"], capture_output=True,
+                                  text=True, encoding="utf-8", errors="replace",
+                                  env=self.env, timeout=60)
+            info = json.loads(proc.stdout)
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            status("WARNING: could not check your login method. Run `claude update` and retry.")
+            return
+        problem = login_problem(info)
+        if problem:
+            sys.exit(problem)
 
     def run(self, prompt, *, system_file, tools, model, session=None, resume=False):
         """One headless Claude call. Returns the reply text.
@@ -386,7 +433,7 @@ def main():
     args = p.parse_args()
 
     cfg = load_config(args.config, args)
-    claude = Claude(cfg["timeout_seconds"])
+    claude = Claude(cfg["timeout_seconds"], cfg["subscription_only"])
 
     # Reviewer instructions come from the same file Claude Code uses for the /refine subagent.
     reviewer_body = strip_frontmatter(REVIEWER_AGENT.read_text(encoding="utf-8"))

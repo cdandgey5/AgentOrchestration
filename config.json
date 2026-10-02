@@ -1,4 +1,5 @@
 {
+  "subscription_only": true,
   "rounds": 2,
   "stop_early": false,
   "show_steps": false,

@@ -15,14 +15,14 @@ Main agent ── draft ──► Reviewer (fresh context, every round)
 final answer
 ```
 
-It runs on your existing Claude Code login. You need no API key and no extra packages.
+It runs on your **Claude subscription** (Pro, Max, Team or Enterprise) through the Claude Code CLI or app. There are **no API requests and no API key**, and no extra packages. See [Subscription only](#2-subscription-only-no-api-billing).
 
 ---
 
 ## 1. Setup (2 minutes)
 
 You need:
-- **Claude Code**, installed and logged in. Run `claude` once to check. Keep it updated with `claude update`.
+- **Claude Code**, logged in with your Claude account: run `claude`, then `/login`. Keep it updated with `claude update`. The Free plan does not include Claude Code.
 - **Python 3.8+**. On Windows, use `python` or `py` where this guide says `python3`.
 
 ```bash
@@ -33,7 +33,28 @@ python3 install.py     # optional: makes /refine work in ALL your projects
 
 ---
 
-## 2. Two ways to use it
+## 2. Subscription only (no API billing)
+
+Both modes run through Claude Code on your subscription login. Nothing calls the API with a key.
+
+| Where | Works on subscription? |
+|---|---|
+| `chat.py` (it runs the `claude` CLI for you) | Yes |
+| `/refine` in the `claude` CLI | Yes |
+| `/refine` in the **Claude Desktop app → Code tab** or the **VS Code extension** | Yes. They load the same `~/.claude` skills and agents after `install.py`. |
+| Regular Claude **Chat** (claude.ai or the Desktop Chat tab) | No. Chat has no subagents. |
+
+**One trap:** if `ANTHROPIC_API_KEY` is set on your computer, `claude -p` (what `chat.py` runs) **always uses the key** and bills per request. It doesn't ask. `chat.py` blocks this by default with `"subscription_only": true`:
+- It removes `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and cloud-provider switches from the calls it makes.
+- Before the first call, it runs `claude auth status`. If the login is not your Claude account (for example a key in `~/.claude/settings.json` or an `apiKeyHelper`), it stops and tells you what to remove.
+
+**Check it yourself:** in `claude`, type `/status`. **Login** should show your Claude account, not "API key". This matters for `/refine` too.
+
+**Usage limits:** the loop uses your plan's 5-hour and weekly limits like any other Claude Code use. One answer = **2N + 1 calls** (5 with the default 2 rounds). See [Tips](#8-usage-and-tips).
+
+---
+
+## 3. Two ways to use it
 
 | | **A. Chat script** (`chat.py`) | **B. Inside Claude Code** (`/refine`) |
 |---|---|---|
@@ -81,7 +102,7 @@ Claude drafts the answer. It calls the `reviewer` subagent with the draft, appli
 
 ---
 
-## 3. Change the number of loops
+## 4. Change the number of loops
 
 | Where | How |
 |---|---|
@@ -93,12 +114,13 @@ Claude drafts the answer. It calls the `reviewer` subagent with the draft, appli
 
 ---
 
-## 4. Config (`config.json`, chat script only)
+## 5. Config (`config.json`, chat script only)
 
 | Key | Default | Meaning |
 |---|---|---|
+| `subscription_only` | `true` | Never bill per API request. Ignores API-key env vars and checks the login before starting. |
 | `rounds` | `2` | Review → revise rounds per answer |
-| `stop_early` | `false` | Stop when the reviewer says `APPROVE` (saves time and money) |
+| `stop_early` | `false` | Stop when the reviewer says `APPROVE` (saves time and usage) |
 | `show_steps` | `false` | Print drafts and reviews, not just the final answer |
 | `main_model` | `null` | For example `"opus"` or `"sonnet"`. `null` = your Claude Code default |
 | `reviewer_model` | `null` | Same options as `main_model` |
@@ -110,7 +132,7 @@ Claude drafts the answer. It calls the `reviewer` subagent with the draft, appli
 
 ---
 
-## 5. Customize the agents
+## 6. Customize the agents
 
 | File | Controls |
 |---|---|
@@ -125,7 +147,7 @@ After editing the reviewer or the skill, run `python3 install.py` again to updat
 
 ---
 
-## 6. How it works (chat script)
+## 7. How it works (chat script)
 
 - **Main agent** = one persistent Claude Code session (`--session-id`, then `--resume`). It remembers the whole chat.
 - **Reviewer** = a brand-new Claude call every round (`--no-session-persistence`). It is truly independent and never sees earlier reviews. It gets the request, the current draft, and the last few exchanges for context.
@@ -133,22 +155,25 @@ After editing the reviewer or the skill, run `python3 install.py` again to updat
 
 ---
 
-## 7. Costs and tips
+## 8. Usage and tips
 
-- One answer = 1 draft + N reviews + N revisions = **2N + 1 calls**. With the default of 2, that is 5 calls, about 3–5× the cost and time of a normal answer.
-- Turn on `stop_early` (or `/early`). Without it, an approved answer is still sent back for another rewrite.
-- Use a strong reviewer and a cheaper main agent, or the reverse. Set this with `main_model` / `reviewer_model`.
+- One answer = 1 draft + N reviews + N revisions = **2N + 1 calls**. With the default of 2, that is 5 calls. It uses about 3–5× the plan usage and time of a normal answer.
+- Turn on `stop_early` (or `/early`). Without it, an approved answer is still sent back for another rewrite, which wastes usage.
+- On Pro you will hit the 5-hour limit sooner. Set `"main_model": "sonnet"` and `"reviewer_model": "sonnet"` to stretch it, since Opus uses limits faster.
 - For quick questions, use `/rounds 0` or plain `claude`. The loop pays off on answers where mistakes cost you: plans, code, research, emails.
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | `Claude Code CLI not found` | Install Claude Code and make sure `claude` works in the same terminal |
 | `unknown option ...` | Your Claude Code is too old: `claude update` |
-| Not logged in / auth error | Run `claude` once and log in |
+| `Not logged in` | Run `claude`, type `/login`, and sign in with your Claude account |
+| `...bill per API request...` | Remove the key or helper it names, restart the terminal, and check `/status` |
+| `Ignoring ANTHROPIC_API_KEY...` | Just a notice. Calls use your subscription. Remove the variable to silence it. |
+| Usage-limit error | You hit your plan's limit. Wait for the reset, or use fewer rounds or `stop_early` |
 | `/refine` not found | Run `claude` from this folder, or run `python3 install.py` |
 | A call times out | Raise `timeout_seconds` in `config.json` |
 | Windows: odd characters | Use Windows Terminal (UTF-8) |

@@ -1,0 +1,12 @@
+{
+  "rounds": 2,
+  "stop_early": false,
+  "show_steps": false,
+  "main_model": null,
+  "reviewer_model": null,
+  "main_tools": "Read,Grep,Glob,WebSearch,WebFetch",
+  "reviewer_tools": "Read,Grep,Glob,WebSearch,WebFetch",
+  "history_turns": 3,
+  "log_dir": "logs",
+  "timeout_seconds": 600
+}

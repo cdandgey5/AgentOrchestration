@@ -16,7 +16,7 @@ User input: $ARGUMENTS
 
 1. **Rounds.** If the input starts with `-r N` (example: `-r 3 explain X`), use N rounds and remove `-r N` from the request. Otherwise use the default rounds. `-r 0` means no review: just answer directly.
 
-2. **Draft.** Do the work and write your best complete answer, exactly as you normally would (read files, run searches, use tools as needed). Do NOT print the draft. The only text you print before the final answer is the one status line per round (step 3c). Keep the draft for the reviewer.
+2. **Draft.** Do the work (read files, run searches, use tools as needed) and compose your best complete answer. Write the draft ONLY inside the reviewer's Agent tool call, in its `<draft>` block. Never write it as a chat message, not even with a "Draft:" label. The only chat text before the final answer is the one status line per round (step 3c).
    - If the request is a change to files: make the changes. The "draft" is a summary of what you changed plus the list of changed files, so the reviewer can read them.
 
 3. **Review loop.** For each round i = 1..N:

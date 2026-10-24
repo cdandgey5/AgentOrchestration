@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the sellable item: the plugin/ folder (committed, used by the marketplace)
-and a .zip of it in dist/ (the file you upload to your store).
+and a .zip of it in releases/ (the file you upload to your store or send to a tester).
 
-    python package.py            -> plugin/  and  dist/refine-loop-<version>.zip
+    python package.py            -> plugin/  and  releases/refine-loop-<version>.zip
 
 The plugin holds the reviewer agent, the refiner agent and the /refine skill.
 Buyers use it with:
@@ -19,14 +19,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 NAME = "refine-loop"
 VERSION = "1.0.0"
-DIST = ROOT / "dist"
+DIST = ROOT / "releases"
 
 MANIFEST = {
     "name": NAME,
     "version": VERSION,
     "description": "Every answer is drafted, checked by an independent reviewer agent, "
                    "and revised before you see it. /refine for one message, "
-                   "`claude --agent refiner` for a whole session.",
+                   "`claude --agent refine-loop:refiner` for a whole session.",
     "author": {"name": "Your Name"},
     "keywords": ["review", "quality", "refine", "subagent"],
 }
@@ -48,12 +48,13 @@ Every answer goes draft -> independent reviewer -> revise before you see it.
 ## Use it
 - One message:      type `/refine <your request>` in Claude Code
 - Rounds:           `/refine -r 3 <request>` (`-r 0` = no review). Default is 2.
-- Whole session:    `claude --agent refiner`
+- Whole session:    `claude --agent refine-loop:refiner`
 
 ## Install
-- Try it once:      `claude --plugin-dir {NAME}.zip`
+- Try it once:      `claude --plugin-dir {NAME}-{VERSION}.zip`   (from the folder that holds the zip)
 - Keep it:          `claude plugin marketplace add <marketplace you were given>`
                     `claude plugin install {NAME}@<marketplace>`
+- Remove it:        `claude plugin uninstall {NAME}@<marketplace>`
 
 ## Settings
 - Default rounds and stop-early: `skills/refine/SKILL.md`, the "Settings" lines

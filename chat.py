@@ -222,9 +222,9 @@ class Claude:
         session=None  -> throwaway context (used for every reviewer call)
         session=<id>  -> persistent main-agent conversation
         """
-        cmd = [self.exe, "-p", "--output-format", "json",
-               "--append-system-prompt-file", str(system_file),
-               "--tools", tools or ""]
+        cmd = [self.exe, "-p", "--output-format", "json", "--tools", tools or ""]
+        if system_file:
+            cmd += ["--append-system-prompt-file", str(system_file)]
         if tools:
             cmd += ["--allowedTools", tools]
         if model:
@@ -314,7 +314,7 @@ class RefineChat:
         if screen and self.cfg["show_steps"]:
             print(f"\n----- {title} -----\n{body}\n", file=sys.stderr, flush=True)
 
-    def turn(self, request, rounds=None):
+    def turn(self, request, rounds=None, show=True):
         rounds = self.cfg["rounds"] if rounds is None else rounds
         calls, start = 1, time.time()
         self.log.write(f"\n## Turn {len(self.history) + 1}\n")
@@ -323,6 +323,8 @@ class RefineChat:
         with Spinner("Main agent: drafting"):
             answer = self._main(request)
         self._step("Draft", answer)
+        # Everything this turn produced, for tools like demo/compare.py.
+        self.last_turn = {"request": request, "draft": answer, "reviews": [], "revisions": []}
 
         done = 0
         for i in range(1, rounds + 1):
@@ -331,6 +333,7 @@ class RefineChat:
             calls += 1
             verdict, issues = parse_verdict(review), count_issues(review)
             self._step(f"Review {i}/{rounds} ({verdict})", review)
+            self.last_turn["reviews"].append(review)
             if self.cfg["stop_early"] and verdict == "APPROVE":
                 status(f"round {i}/{rounds}: reviewer APPROVE -> stopping early")
                 break
@@ -340,12 +343,15 @@ class RefineChat:
             done = i
             status(f"round {i}/{rounds}: reviewer {verdict} ({issues} issues) -> revised")
             self._step(f"Revision {i}/{rounds}", answer, screen=i < rounds)  # last one = final answer
+            self.last_turn["revisions"].append(answer)
 
         self.history.append((request, answer))
         self.log.section("Final answer", answer)
-        if self.cfg["show_steps"]:
-            print("\n===== Final answer =====", file=sys.stderr, flush=True)
-        print(f"\n{answer}\n", flush=True)
+        self.last_turn.update(final=answer, calls=calls, seconds=int(time.time() - start))
+        if show:
+            if self.cfg["show_steps"]:
+                print("\n===== Final answer =====", file=sys.stderr, flush=True)
+            print(f"\n{answer}\n", flush=True)
         status(f"[{done} revision(s) - {calls} Claude calls - {int(time.time() - start)}s]")
         return answer
 

@@ -1,0 +1,11 @@
+{
+  "name": "refine-loop-market",
+  "owner": { "name": "Your Name" },
+  "plugins": [
+    {
+      "name": "refine-loop",
+      "description": "Draft -> independent reviewer -> revise, before every answer.",
+      "source": "./plugin"
+    }
+  ]
+}

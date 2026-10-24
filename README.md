@@ -173,10 +173,28 @@ Refine mode replaces Claude Code's default coding instructions with the refine l
 | `.claude/settings.json` | Turns on refine mode when you open this folder |
 | `chat.py`, `config.json`, `prompts/` | The Python chat script and its settings and message templates |
 | `install.py` | Optional global install (Python) |
+| `package.py`, `plugin/`, `.claude-plugin/marketplace.json` | Build and serve the plugin that other people install |
+| `demo/compare.py`, `demo/examples/` | Side-by-side demo: Claude Code as-is vs. the loop |
 
 ---
 
-## 9. Troubleshooting
+## 9. Package it for other people
+
+`python3 package.py` builds `plugin/` (a standard Claude Code plugin) and `dist/refine-loop-<version>.zip`.
+Someone with the zip runs `claude --plugin-dir refine-loop-1.0.0.zip`. Someone with access to this repo runs:
+
+```bash
+claude plugin marketplace add <owner>/<repo>      # or a local path
+claude plugin install refine-loop@refine-loop-market
+claude --agent refine-loop:refiner                # every message reviewed
+```
+
+Inside the plugin the names are `refine-loop:refine`, `refine-loop:reviewer`, `refine-loop:refiner`. `/refine` still works.
+`demo/compare.py "<prompt>"` writes a side-by-side "Claude Code as-is vs. refine loop" report to `demo/out/` (see `demo/examples/`). Business notes: `SELLING.md`.
+
+---
+
+## 10. Troubleshooting
 
 | Problem | Fix |
 |---|---|

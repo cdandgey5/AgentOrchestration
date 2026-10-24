@@ -1,0 +1,14 @@
+{
+  "name": "refine-loop",
+  "version": "1.0.0",
+  "description": "Every answer is drafted, checked by an independent reviewer agent, and revised before you see it. /refine for one message, `claude --agent refiner` for a whole session.",
+  "author": {
+    "name": "Your Name"
+  },
+  "keywords": [
+    "review",
+    "quality",
+    "refine",
+    "subagent"
+  ]
+}

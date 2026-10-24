@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code as-is vs. Refine loop</title>
+<style>
+  body { margin: 0; padding: 24px; background: #0f1115; color: #e6e6e6;
+         font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  .meta { color: #9aa0a6; font-size: 13px; margin-bottom: 20px; }
+  .prompt { background: #1a1d24; border-left: 4px solid #f5b942; padding: 12px 16px;
+             border-radius: 6px; white-space: pre-wrap; margin-bottom: 24px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .card { background: #161920; border: 1px solid #2a2e37; border-radius: 10px; padding: 18px; }
+  .card h2 { margin: 0 0 12px; font-size: 17px; }
+  .base h2 { color: #9aa0a6; }
+  .refined { border-color: #3ddc84; }
+  .refined h2 { color: #3ddc84; }
+  pre { white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, Menlo, Consolas, monospace;
+         font-size: 13px; line-height: 1.5; margin: 0; }
+  details { margin-top: 24px; }
+  summary { cursor: pointer; color: #f5b942; font-weight: 600; }
+  h3 { font-size: 14px; color: #9aa0a6; margin: 16px 0 6px; }
+</style>
+</head>
+<body>
+<h1>Claude Code as-is vs. Refine loop</h1>
+<div class="meta">2026-10-24 19:23 &middot; model: default &middot;
+  refine: 2 review rounds, 5 Claude calls, 51s</div>
+<div class="prompt">Write a Python function normalize_postal_code(s) that takes a Canadian postal code typed by a user and returns it as &#x27;A1A 1A1&#x27;, or None if it is not valid. Include 5 test cases.</div>
+<div class="cols">
+  <div class="card base"><h2>Case 1 &middot; Claude Code as-is</h2><pre>```python
+import re
+
+# First letter excludes D, F, I, O, Q, U, W, Z.
+# Other letters exclude D, F, I, O, Q, U.
+_POSTAL_RE = re.compile(
+    r&quot;([ABCEGHJKLMNPRSTVXY][0-9][ABCEGHJKLMNPRSTVWXYZ])&quot;
+    r&quot;([0-9][ABCEGHJKLMNPRSTVWXYZ][0-9])&quot;
+)
+
+
+def normalize_postal_code(s):
+    &quot;&quot;&quot;Return a Canadian postal code as &#x27;A1A 1A1&#x27;, or None if invalid.&quot;&quot;&quot;
+    if not isinstance(s, str):
+        return None
+    # Accept spaces, hyphens and any case in user input.
+    cleaned = re.sub(r&quot;[\s\-]+&quot;, &quot;&quot;, s).upper()
+    m = _POSTAL_RE.fullmatch(cleaned)
+    return f&quot;{m.group(1)} {m.group(2)}&quot; if m else None
+
+
+def test_normalize_postal_code():
+    # 1. Already formatted
+    assert normalize_postal_code(&quot;K1A 0B1&quot;) == &quot;K1A 0B1&quot;
+    # 2. Lowercase, no space
+    assert normalize_postal_code(&quot;m5v3l9&quot;) == &quot;M5V 3L9&quot;
+    # 3. Extra whitespace and hyphen
+    assert normalize_postal_code(&quot;  h2x-1y4 &quot;) == &quot;H2X 1Y4&quot;
+    # 4. Forbidden letters (D, F, I, O, Q, U anywhere; W, Z as first letter)
+    assert normalize_postal_code(&quot;D1A 1A1&quot;) is None
+    assert normalize_postal_code(&quot;W1A 1A1&quot;) is None
+    assert normalize_postal_code(&quot;K1A 0O1&quot;) is None
+    # 5. Wrong shape / wrong length / non-string
+    assert normalize_postal_code(&quot;K1A 0B&quot;) is None
+    assert normalize_postal_code(&quot;1KA 0B1&quot;) is None
+    assert normalize_postal_code(None) is None
+
+
+if __name__ == &quot;__main__&quot;:
+    test_normalize_postal_code()
+    print(&quot;All tests passed&quot;)
+```
+
+- **Cleaning:** The function strips spaces and hyphens, uppercases the input, then matches the strict pattern. It returns `None` for non-strings.
+- **Letter rules:** It enforces Canada Post&#x27;s rules. D, F, I, O, Q and U are never used. W and Z are not used as the first letter.
+- **Digits:** It uses `[0-9]` rather than `\d`, so non-ASCII digits are rejected.
+- **Tests:** The test function has five groups of cases, with a few extra assertions inside groups 4 and 5. I haven&#x27;t run it, because this session has no shell tool.</pre></div>
+  <div class="card refined"><h2>Case 2 &middot; Same prompt, refine loop</h2><pre>```python
+import re
+
+# First letter excludes D, F, I, O, Q, U, W, Z.
+# The other two letters exclude D, F, I, O, Q, U (W and Z are allowed).
+_POSTAL_RE = re.compile(r&quot;([ABCEGHJKLMNPRSTVXY][0-9][ABCEGHJKLMNPRSTVWXYZ])&quot;
+                        r&quot;([0-9][ABCEGHJKLMNPRSTVWXYZ][0-9])&quot;)
+
+
+def normalize_postal_code(s):
+    &quot;&quot;&quot;Return a Canadian postal code as &#x27;A1A 1A1&#x27;, or None if invalid.
+
+    Accepts any case, and ignores whitespace and hyphens typed between or
+    around the characters (e.g. &#x27; k1a-0b1 &#x27;).
+    &quot;&quot;&quot;
+    if not isinstance(s, str):
+        return None
+    cleaned = re.sub(r&quot;[\s-]+&quot;, &quot;&quot;, s)
+    if not cleaned.isascii():  # checked before upper(), which can map e.g. &#x27;ſ&#x27; to &#x27;S&#x27;
+        return None
+    m = _POSTAL_RE.fullmatch(cleaned.upper())
+    return f&quot;{m.group(1)} {m.group(2)}&quot; if m else None
+
+
+def test_normalize_postal_code():
+    assert normalize_postal_code(&quot;k1a 0b1&quot;) == &quot;K1A 0B1&quot;   # lowercase
+    assert normalize_postal_code(&quot;M5V-2T6&quot;) == &quot;M5V 2T6&quot;   # hyphen separator
+    assert normalize_postal_code(&quot;K1W2Z3&quot;) == &quot;K1W 2Z3&quot;    # W/Z fine after 1st position
+    assert normalize_postal_code(&quot;W1A 0A0&quot;) is None        # W not allowed first
+    assert normalize_postal_code(&quot;K1A 0B&quot;) is None         # too short
+
+
+if __name__ == &quot;__main__&quot;:
+    test_normalize_postal_code()
+    print(&quot;All tests passed&quot;)
+```
+
+I couldn&#x27;t run this here because no code-execution tool was available. I traced each of the 5 tests by hand against the regex, and they should pass.
+
+The rules it applies:
+
+- **Letters:** D, F, I, O, Q and U are never valid. W and Z are valid only in the 2nd and 3rd letter positions, not the first.
+- **Cleanup:** it strips whitespace and hyphens, then uppercases. Non-string input returns `None`.
+- **ASCII only:** non-ASCII characters are rejected before uppercasing, so look-alikes such as &quot;ſ&quot; (long s) and non-ASCII digits don&#x27;t slip through.</pre></div>
+</div>
+<details><summary>What the reviewer caught</summary><h3>Round 1</h3><pre>ISSUES:
+1. [low] Closing note on test cases - The draft says it hasn&#x27;t run the code, though it&#x27;s short enough to check, and the user asked for exactly 5 tests but got 7 -&gt; run it before delivering, or trim to 5 (or say plainly that the 2 extra are optional). I traced the regexes and all 7 asserts by hand and they pass.
+2. [low] Tests - No test accepts W or Z in a non-first position (e.g. &quot;K1W 2Z3&quot; -&gt; &quot;K1W 2Z3&quot;). That is the rule most likely to be implemented wrongly -&gt; swap one of the redundant rejection cases for this.
+
+MISSING: none
+
+VERDICT: APPROVE</pre><h3>Round 2</h3><pre>ISSUES:
+1. [low] `cleaned = re.sub(...).upper()` - `str.upper()` maps some non-ASCII letters to ASCII ones. For example, &quot;ſ&quot; (long s) becomes &quot;S&quot;, so `&quot;ſ1A 0B1&quot;` would be accepted. This contradicts the draft&#x27;s claim that non-ASCII input is rejected. -&gt; Optionally validate before uppercasing, or use `re.ASCII` and `re.IGNORECASE` on the raw string, or check `cleaned.isascii()` first. This is an edge case only.
+
+MISSING: none
+
+VERDICT: APPROVE</pre></details>
+<details><summary>First draft, before any review</summary><pre>```python
+import re
+
+# First letter excludes D, F, I, O, Q, U, W, Z.
+# The other two letters exclude D, F, I, O, Q, U.
+_POSTAL_RE = re.compile(r&quot;([ABCEGHJKLMNPRSTVXY][0-9][ABCEGHJKLMNPRSTVWXYZ])&quot;
+                        r&quot;([0-9][ABCEGHJKLMNPRSTVWXYZ][0-9])&quot;)
+
+
+def normalize_postal_code(s):
+    &quot;&quot;&quot;Return a Canadian postal code as &#x27;A1A 1A1&#x27;, or None if invalid.
+
+    Accepts any case, and ignores whitespace and hyphens typed between or
+    around the characters (e.g. &#x27; k1a-0b1 &#x27;).
+    &quot;&quot;&quot;
+    if not isinstance(s, str):
+        return None
+    cleaned = re.sub(r&quot;[\s-]+&quot;, &quot;&quot;, s).upper()
+    m = _POSTAL_RE.fullmatch(cleaned)
+    return f&quot;{m.group(1)} {m.group(2)}&quot; if m else None
+
+
+def test_normalize_postal_code():
+    assert normalize_postal_code(&quot;k1a 0b1&quot;) == &quot;K1A 0B1&quot;      # lowercase
+    assert normalize_postal_code(&quot;M5V-2T6&quot;) == &quot;M5V 2T6&quot;      # hyphen separator
+    assert normalize_postal_code(&quot;  h0h0h0 &quot;) == &quot;H0H 0H0&quot;    # no space, padding
+    assert normalize_postal_code(&quot;D1A 0A0&quot;) is None           # D never allowed
+    assert normalize_postal_code(&quot;W1A 0A0&quot;) is None           # W not allowed first
+    assert normalize_postal_code(&quot;K1A 0B&quot;) is None            # too short
+    assert normalize_postal_code(None) is None                # non-string
+
+
+if __name__ == &quot;__main__&quot;:
+    test_normalize_postal_code()
+    print(&quot;All tests passed&quot;)
+```
+
+I haven&#x27;t run this. The rules it applies:
+
+- **Letters:** D, F, I, O, Q and U are never valid. W and Z are valid only in the 2nd and 3rd letter positions, not the first.
+- **Cleanup:** it uppercases the input and strips whitespace and hyphens before validating.
+- **Digits:** it uses `[0-9]`, so non-ASCII digits are rejected.
+- **Test cases:** the test function has 7 asserts, which covers the 5 you asked for plus two extra rejection cases.</pre></details>
+</body>
+</html>

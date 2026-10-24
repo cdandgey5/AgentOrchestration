@@ -16,11 +16,11 @@ User input: $ARGUMENTS
 
 1. **Rounds.** If the input starts with `-r N` (example: `-r 3 explain X`), use N rounds and remove `-r N` from the request. Otherwise use the default rounds. `-r 0` means no review: just answer directly.
 
-2. **Draft.** Do the work and write your best complete answer, exactly as you normally would (read files, run searches, use tools as needed). Do NOT show the draft to the user. Keep it for the reviewer.
+2. **Draft.** Do the work and write your best complete answer, exactly as you normally would (read files, run searches, use tools as needed). Do NOT print the draft. The only text you print before the final answer is the one status line per round (step 3c). Keep the draft for the reviewer.
    - If the request is a change to files: make the changes. The "draft" is a summary of what you changed plus the list of changed files, so the reviewer can read them.
 
 3. **Review loop.** For each round i = 1..N:
-   a. Call the Agent tool with `subagent_type: "reviewer"`. The reviewer does NOT see this conversation. Its prompt must contain:
+   a. Call the Agent tool with `subagent_type: "reviewer"` (if the agent list shows it as `refine-loop:reviewer`, use that exact name). The reviewer does NOT see this conversation. Its prompt must contain:
       - `<user_request>`: the user's request, word for word.
       - `<context>`: anything from earlier in this conversation the reviewer needs (key facts, constraints, file paths). Write "none" if nothing.
       - `<draft>`: the complete current draft, word for word. Never summarize it.

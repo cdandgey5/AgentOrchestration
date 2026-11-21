@@ -1,5 +1,7 @@
 # Refine Loop
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cdandgey5/AgentOrchestration/badge)](https://scorecard.dev/viewer/?uri=github.com/cdandgey5/AgentOrchestration) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Every answer is checked by an independent reviewer agent before you see it.**
 Main agent drafts → reviewer agent critiques → main agent revises. Twice by default. Then you get the final answer.
 

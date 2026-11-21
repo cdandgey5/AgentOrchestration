@@ -1,0 +1,3 @@
+# Every change needs the maintainer's review when branch protection
+# has "Require review from Code Owners" turned on.
+* @cdandgey5

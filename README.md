@@ -1,13 +1,15 @@
-# Refine Loop for Claude Code
+# Refine Loop
 
-Every answer is checked by a reviewer before you see it.
-**Main agent drafts → reviewer subagent critiques → main agent revises.** This repeats N times (default **2**). Then you get the final answer.
+**Every answer is checked by an independent reviewer agent before you see it.**
+Main agent drafts → reviewer agent critiques → main agent revises. Twice by default. Then you get the final answer.
+
+Works in **Claude Code** and **GitHub Copilot** (CLI and VS Code). Runs on your existing subscription. Five text files, no code, MIT license.
 
 ```
 your message
    │
    ▼
-Main agent ── draft ──► Reviewer subagent (fresh context, every round)
+Main agent ── draft ──► Reviewer agent (fresh context, every round)
    ▲                         │
    └──── feedback ◄──────────┘     repeat N times (default 2)
    │
@@ -15,194 +17,83 @@ Main agent ── draft ──► Reviewer subagent (fresh context, every round)
 final answer
 ```
 
-It runs on your **Claude subscription** (Pro, Max, Team or Enterprise) through Claude Code. There are **no API requests and no API key**.
-
 ---
 
-## 1. What you need
+## Install
 
-| Thing | Needed? |
-|---|---|
-| Claude Pro / Max / Team / Enterprise plan | **Yes**. The Free plan has no Claude Code. |
-| **Claude Desktop app** (GUI) **or** Claude Code **CLI** (terminal) | **One of them** |
-| Python | **No.** Only for the optional `chat.py` script ([option C](#c-chatpy-script-needs-python)). |
-| Git | **No.** Download the ZIP instead. |
-
-**Get Claude:**
-- **Desktop app (GUI):** download from <https://claude.ai/download> and sign in.
-- **CLI (terminal):**
-  - Windows (PowerShell): `irm https://claude.ai/install.ps1 | iex`
-  - Mac: `curl -fsSL https://claude.ai/install.sh | bash`
-
-  Then run `claude` and sign in with your Claude account.
-
-**Get this framework:** on GitHub click **Code → Download ZIP**, then unzip it, for example to `Documents\AgentOrchestration`. Or use `git clone`.
-
----
-
-## 2. Run it
-
-### A. Desktop app (GUI): no Python, every message reviewed
-
-1. Open the Claude Desktop app and click the **Code** tab.
-2. Choose **Local**, click **Select folder**, and pick the `AgentOrchestration` folder.
-3. Type your message as normal. Every answer goes through the review loop.
-
-This works because the folder's `.claude/settings.json` turns on **refine mode** (`"agent": "refiner"`).
-If your app version ignores that setting, type `/refine <your message>` instead. It does the same thing for one message.
-
-### B. CLI (terminal): no Python
-
+**Claude Code** (2.1.224+; `claude update` if older)
 ```bash
-cd path/to/AgentOrchestration
-claude                     # every message is reviewed in this folder
-```
-
-To use it in **other projects**, do the [global install](#4-use-it-in-all-your-projects) once. Then:
-
-```bash
-claude --agent refiner     # every message is reviewed, in any folder
-claude                     # normal Claude; type /refine <msg> when you want a review
-```
-
-### C. `chat.py` script: needs Python
-
-The loop runs in code, so it always does exactly N rounds. It is good for Q&A and research. Python 3.8+:
-- **Windows:** `winget install Python.Python.3.12` (or python.org, and tick **"Add python.exe to PATH"**). Reopen the terminal and check with `python --version`.
-- **Mac:** run `python3 --version`. If it is missing, run `xcode-select --install`.
-
-```bash
-python3 chat.py              # chat (Windows: python chat.py)
-python3 chat.py -r 3         # 3 rounds per answer
-python3 chat.py --steps      # also show every draft and review
-python3 chat.py "question"   # one answer, then exit
-```
-
-Inside the chat: `/rounds 3`, `/steps`, `/early`, `/new`, `/help`, `/exit`. Use `"""` to start and end a multi-line paste.
-Full transcripts are saved in `logs/`.
-
----
-
-## 3. Where to set parameters
-
-| What | Desktop app / CLI (refine mode, `/refine`) | `chat.py` |
-|---|---|---|
-| **Rounds, default** | `Default rounds: 2` line in `.claude/skills/refine/SKILL.md` | `"rounds"` in `config.json` |
-| **Rounds, one message** | Start the message with `-r 3` (`-r 0` = no review) | Same: `-r 3 your message` |
-| **Rounds, one session** | - | `python3 chat.py -r 3` or `/rounds 3` |
-| **Stop when reviewer approves** | `Stop early ...: no` → `yes` in `SKILL.md` | `"stop_early": true` or `/early` |
-| **Main model** | Desktop: model menu next to Send. CLI: `/model sonnet` | `"main_model": "sonnet"` |
-| **Reviewer model** | `model: inherit` → `model: opus` in `.claude/agents/reviewer.md` | `"reviewer_model": "opus"` |
-| **What the reviewer checks** | `.claude/agents/reviewer.md` | Same file |
-| **Turn refine mode off** | Delete `.claude/settings.json` in this folder | - |
-
-After editing a file, **repeat the global install** (if you did it) so the copy in `~/.claude` matches.
-
----
-
-## 4. Use it in all your projects
-
-This copies the reviewer, the refine-mode agent and `/refine` to `~/.claude`, where every project can find them.
-
-**Windows (PowerShell), run inside the AgentOrchestration folder:**
-```powershell
-New-Item -ItemType Directory -Force "$HOME\.claude\agents", "$HOME\.claude\skills" | Out-Null
-Copy-Item .claude\agents\*.md "$HOME\.claude\agents\" -Force
-Copy-Item .claude\skills\refine "$HOME\.claude\skills\" -Recurse -Force
-```
-
-**Mac / Linux:**
-```bash
-mkdir -p ~/.claude/agents ~/.claude/skills
-cp .claude/agents/*.md ~/.claude/agents/
-cp -R .claude/skills/refine ~/.claude/skills/
-```
-
-**With Python:** `python3 install.py` does the same, backs up any files it replaces, and `--uninstall` removes them.
-
----
-
-## 5. Subscription only (no API billing)
-
-- The Desktop app and the CLI use the Claude account you signed in with.
-- **Check it:** in Claude Code type `/status`. **Login** should show your Claude account, not "API key".
-- **Trap:** if `ANTHROPIC_API_KEY` is set on your computer, `claude -p` (what `chat.py` runs) uses the key and bills per request without asking. `chat.py` blocks this by default (`"subscription_only": true`):
-  - it ignores API-key variables;
-  - it checks `claude auth status` before the first call and stops if the login is not your Claude account.
-- **Usage limits:** one answer = 1 draft + N reviews + N revisions = **2N + 1 calls** (5 with the default). This uses your plan's 5-hour and weekly limits about 3–5× faster than normal chat.
-
----
-
-## 6. Which way to choose
-
-| | A/B: refine mode | `/refine` in normal Claude | C: `chat.py` |
-|---|---|---|---|
-| Python | No | No | Yes |
-| GUI | Yes | Yes | No (terminal) |
-| Every message reviewed | Yes | Only `/refine` messages | Yes |
-| Exactly N rounds guaranteed | Claude follows the steps | Claude follows the steps | Yes, enforced in code |
-| Best for | Chat, questions, writing, plans | Coding work in a project | Q&A and research with full logs |
-
-Refine mode replaces Claude Code's default coding instructions with the refine loop. For big coding jobs, use normal `claude` with `/refine`.
-
----
-
-## 7. `config.json` (chat.py only)
-
-| Key | Default | Meaning |
-|---|---|---|
-| `subscription_only` | `true` | Never bill per API request |
-| `rounds` | `2` | Review → revise rounds per answer |
-| `stop_early` | `false` | Stop when the reviewer says `APPROVE` (saves time and usage) |
-| `show_steps` | `false` | Print drafts and reviews too |
-| `main_model` / `reviewer_model` | `null` | `"opus"`, `"sonnet"`, `"haiku"`. `null` = your default |
-| `main_tools` / `reviewer_tools` | `Read,Grep,Glob,WebSearch,WebFetch` | Tools each agent may use. `""` = none |
-| `history_turns` | `3` | Past exchanges the reviewer sees, for follow-up questions |
-| `log_dir` | `"logs"` | Transcript folder. `null` = no logs |
-| `timeout_seconds` | `600` | Max time for one Claude call |
-
----
-
-## 8. Files
-
-| File | What it is |
-|---|---|
-| `.claude/agents/reviewer.md` | The **reviewer**: what it checks and its reply format. Shared by every mode. |
-| `.claude/agents/refiner.md` | **Refine mode**: runs `/refine` on every message |
-| `.claude/skills/refine/SKILL.md` | **`/refine`**: the loop steps, default rounds, stop-early |
-| `.claude/settings.json` | Turns on refine mode when you open this folder |
-| `chat.py`, `config.json`, `prompts/` | The Python chat script and its settings and message templates |
-| `install.py` | Optional global install (Python) |
-| `package.py`, `plugin/`, `.claude-plugin/marketplace.json` | Build and serve the plugin that other people install |
-| `demo/compare.py`, `demo/examples/` | Side-by-side demo: Claude Code as-is vs. the loop |
-
----
-
-## 9. Package it for other people
-
-`python3 package.py` builds `plugin/` (a standard Claude Code plugin) and `dist/refine-loop-<version>.zip`.
-Someone with the zip runs `claude --plugin-dir refine-loop-1.0.0.zip`. Someone with access to this repo runs:
-
-```bash
-claude plugin marketplace add <owner>/<repo>      # or a local path
+claude plugin marketplace add cdandgey5/AgentOrchestration
 claude plugin install refine-loop@refine-loop-market
-claude --agent refine-loop:refiner                # every message reviewed
+```
+Try without installing: download `releases/refine-loop-1.1.0.zip` and run `claude --plugin-dir refine-loop-1.1.0.zip` from that folder.
+
+**GitHub Copilot**
+```bash
+copilot plugin install cdandgey5/AgentOrchestration:plugin
 ```
 
-Inside the plugin the names are `refine-loop:refine`, `refine-loop:reviewer`, `refine-loop:refiner`. `/refine` still works.
-`demo/compare.py "<prompt>"` writes a side-by-side "Claude Code as-is vs. refine loop" report to `demo/out/` (see `demo/examples/`). Business notes: `SELLING.md`.
+Both installs are user-wide: every folder, every project, including the Claude Desktop app's Code tab and VS Code.
 
----
+## Use
 
-## 10. Troubleshooting
+| | Claude Code | Copilot |
+|---|---|---|
+| One message, reviewed | `/refine <request>` | `Use the /refine skill: <request>` |
+| Set rounds for that message | `/refine -r 3 <request>` (`-r 0` = no review) | same, after the skill name |
+| Every message, whole session | `claude --agent refine-loop:refiner` | `copilot --agent refiner` (VS Code: pick **refiner** in the agents dropdown) |
+| Skip one message in session mode | `-r 0 <message>` | same |
+| Remove | `claude plugin uninstall refine-loop@refine-loop-market` | `copilot plugin uninstall refine-loop` |
+
+Each answer prints one status line per round, like `Round 1/2: reviewer said REVISE, 3 issues, fixed 3.`, then the answer, then a 3-bullet review log.
+
+**Expect 2N+1 model calls per answer** (5 with the default). That is 3-5x the usage of a normal answer, on your own plan's limits. Use `-r 1` for everyday questions and 2+ for things where mistakes cost you: plans, code, research, emails.
+
+## Change the defaults
+
+| What | Where |
+|---|---|
+| Default rounds | `Default rounds: 2` in `skills/refine/SKILL.md` |
+| Stop early when the reviewer approves | `Stop early ...: no` → `yes`, same file |
+| What the reviewer checks, how strict | `agents/reviewer.md` (the Copilot copy is generated from it) |
+| Reviewer model (Copilot) | add `model: <name>` to `com.github.copilot/agents/reviewer.agent.md`. A different model than the author is a good idea. |
+| Reviewer model (Claude) | `model: inherit` → `model: opus` in `agents/reviewer.md` |
+
+Edit the installed copy for a quick local change, or fork the repo, edit `.claude/...`, run `python package.py`, and install from your fork.
+
+## Security
+
+Read [SECURITY.md](SECURITY.md) before suggesting this at work. Short version:
+- No code runs. It is instructions for the model, readable in full in 5 minutes.
+- **Not offline.** Your prompts go to Anthropic or GitHub exactly as they do without this plugin. No new destination; more tokens.
+- The reviewer agent can only read and search. It cannot change files or run commands.
+- Ships no hooks, no MCP servers, no settings changes, no pre-approved permissions.
+- `releases/SHA256SUMS` lets you verify the zip.
+
+## How it works
+
+- `skills/refine/SKILL.md`: the loop steps. Same file format in Claude Code and Copilot.
+- `agents/reviewer.md`: the reviewer. Runs as a subagent with a fresh context, so it never sees the earlier reviews and cannot be talked into agreeing.
+- `agents/refiner.md`: a session agent that runs the loop on every message.
+- `plugin/`: the installable plugin, built by `package.py` from the files above. Two manifests (Claude: `.claude-plugin/plugin.json`, Copilot: `plugin.json`), shared skill, per-tool agent files.
+
+## Extras (Claude Code only, need Python 3.8+)
+
+- `chat.py`: a terminal chat where the loop runs in code, so it always does exactly N rounds and logs every draft and review to `logs/`. `python3 chat.py -r 3`, `/help` inside. Settings in `config.json`. It refuses to run on an API key by default (`subscription_only`).
+- `demo/compare.py "<prompt>"`: runs one prompt through plain Claude Code and through the loop, writes a side-by-side `.md` and `.html`. See `demo/examples/`.
+- `install.py`: copies the agents and skill into `~/.claude` without the plugin system.
+
+## Contribute
+
+Edit the sources in `.claude/`, bump `VERSION` in `package.py`, run `python package.py`, commit `plugin/` and `releases/`. Test with [TESTING.md](TESTING.md). Copilot support is new and untested by the author: reports welcome.
+
+## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| Desktop app answers without reviewing | Use `/refine <message>`, or check that you opened the AgentOrchestration folder itself |
-| `/refine` not found | Open this folder, or do the [global install](#4-use-it-in-all-your-projects) |
-| `python` not found | Install Python ([option C](#c-chatpy-script-needs-python)), or use option A or B, which need no Python |
-| `Claude Code CLI not found` (chat.py) | Install the CLI and check that `claude` works in the same terminal |
-| `Not logged in` | Run `claude`, type `/login`, and sign in with your Claude account |
-| `...bill per API request...` | Remove the key or helper it names, restart the terminal, and check `/status` |
-| `unknown option ...` | Update Claude Code: `claude update` |
-| Usage-limit error | Wait for the reset. Use fewer rounds, `-r 0` for quick messages, or stop-early. |
+| `/refine` not found (Claude) | `claude plugin list` shows it? If not, redo Install. Restart Claude Code after installing. |
+| Skill not loading (Copilot) | Write it out: `Use the refine skill: ...`. Check `/skills list`. |
+| Reviewer did not run as a separate agent | Claude: `/agents` must list `refine-loop:reviewer`. Copilot: `/agent` must list `reviewer`; the main agent needs the `agent` tool enabled. |
+| `unknown option` | Update the tool: `claude update` / `copilot update` |
+| Too slow | `-r 1`, or remove web tools from the reviewer |
+| Usage-limit error | Your plan's limit. Wait, or lower rounds. |

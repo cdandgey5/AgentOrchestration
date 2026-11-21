@@ -1,18 +1,24 @@
-# Refine Loop 1.0.0
+# Refine Loop 1.1.0
 
-Every answer goes draft -> independent reviewer -> revise before you see it.
+Every answer goes draft -> independent reviewer agent -> revise before you see it.
+Works in Claude Code and GitHub Copilot. Five text files, no code. MIT license.
 
-## Use it
-- One message:      type `/refine <your request>` in Claude Code
-- Rounds:           `/refine -r 3 <request>` (`-r 0` = no review). Default is 2.
-- Whole session:    `claude --agent refine-loop:refiner`
+## Claude Code
+- Try once:    `claude --plugin-dir refine-loop-1.1.0.zip`
+- Install:     `claude plugin marketplace add cdandgey5/AgentOrchestration`
+               `claude plugin install refine-loop@refine-loop-market`
+- One message: `/refine <request>`   rounds: `/refine -r 3 <request>` (`-r 0` = no review)
+- Session:     `claude --agent refine-loop:refiner`
+- Remove:      `claude plugin uninstall refine-loop@refine-loop-market`
 
-## Install
-- Try it once:      `claude --plugin-dir refine-loop-1.0.0.zip`   (from the folder that holds the zip)
-- Keep it:          `claude plugin marketplace add <marketplace you were given>`
-                    `claude plugin install refine-loop@<marketplace>`
-- Remove it:        `claude plugin uninstall refine-loop@<marketplace>`
+## GitHub Copilot (CLI, VS Code)
+- Install:     `copilot plugin install cdandgey5/AgentOrchestration:plugin`
+- One message: `Use the /refine skill: <request>`
+- Session:     `copilot --agent refiner`   (VS Code: pick "refiner" in the agents dropdown)
+- Remove:      `copilot plugin uninstall refine-loop`
 
 ## Settings
-- Default rounds and stop-early: `skills/refine/SKILL.md`, the "Settings" lines
-- What the reviewer checks:      `agents/reviewer.md`
+- Default rounds, stop-early: `skills/refine/SKILL.md`, the "Settings" lines
+- What the reviewer checks:   `agents/reviewer.md` (Claude) and `com.github.copilot/agents/reviewer.agent.md` (Copilot)
+
+Security notes: https://github.com/cdandgey5/AgentOrchestration/blob/main/SECURITY.md

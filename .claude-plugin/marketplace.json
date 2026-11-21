@@ -1,10 +1,10 @@
 {
   "name": "refine-loop-market",
-  "owner": { "name": "Your Name" },
+  "owner": { "name": "cdandgey5" },
   "plugins": [
     {
       "name": "refine-loop",
-      "description": "Draft -> independent reviewer -> revise, before every answer.",
+      "description": "Draft -> independent reviewer agent -> revise, before every answer. Works in Claude Code and GitHub Copilot.",
       "source": "./plugin"
     }
   ]

@@ -47,4 +47,7 @@ Compare with the line in `releases/SHA256SUMS`.
 
 ## Reporting
 
-Open a GitHub issue. For something you do not want public, use GitHub's private vulnerability reporting on the repository's Security tab.
+- Something you do not want public: use GitHub's private vulnerability reporting, <https://github.com/cdandgey5/AgentOrchestration/security/advisories/new>. You get a reply within 7 days.
+- Anything else: open an issue at <https://github.com/cdandgey5/AgentOrchestration/issues>.
+
+Automated checks: [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/cdandgey5/AgentOrchestration) runs weekly; CodeQL scans the Python helpers on every push.
